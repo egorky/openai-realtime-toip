@@ -5,7 +5,7 @@ import config from 'config';
 import * as fs from 'fs';
 import * as path from 'path';
 import functions from "./functionHandlers"; // Assuming this is still needed for other parts
-import { CallSpecificConfig, AriClientInterface, Logger } from "./types"; // Removed OpenAIRealtimeAPIConfig as it's now part of CallSpecificConfig
+import { CallSpecificConfig, AriClientInterface, Logger } from "./types";
 import { AriClientService } from "./ari-client";
 
 
@@ -21,40 +21,33 @@ interface OpenAISession {
 // Centralized map for active OpenAI Realtime sessions
 const activeOpenAISessions = new Map<string, OpenAISession>();
 
-// TODO: Review if `activeSessions` and `CallSessionData` are still needed or can be merged/refactored
-// For now, keeping it to minimize disruption if other parts of the code rely on it.
 interface CallSessionData {
   callId: string;
   ariClient: AriClientService;
   frontendConn?: WebSocket;
-  modelConn?: WebSocket; // Potentially the old OpenAI connection, mark for review/removal
-  // config: CallSpecificConfig; // This is now part of OpenAISession
+  modelConn?: WebSocket;
   lastAssistantItemId?: string;
   responseStartTimestamp?: number;
 }
 const activeSessions = new Map<string, CallSessionData>(); // Legacy session map
 
 
-// Helper to get legacy session data, might be phased out
 function getLegacySession(callId: string, operation: string): CallSessionData | undefined {
   const session = activeSessions.get(callId);
   if (!session) {
-    // Reduced noise for this legacy getter if new system is primary
     // console.warn(`SessionManager (Legacy): ${operation} - No active legacy session found for callId ${callId}.`);
   }
   return session;
 }
 
 export function handleCallConnection(callId: string, ariClient: AriClientService, logger: Logger) {
-  // This function might be simplified if legacy session management is removed.
-  // For now, it primarily sets up the ariClient link for the legacy map.
   if (activeSessions.has(callId)) {
     logger.warn(`SessionManager (Legacy): Call connection for ${callId} already in legacy map. Overwriting ariClient link.`);
   }
   logger.info(`SessionManager: Initializing legacy session data placeholder for call: ${callId}`);
   const newLegacySessionData: Partial<CallSessionData> = {
     callId,
-    ariClient, // Store the concrete AriClientService instance
+    ariClient,
   };
   activeSessions.set(callId, newLegacySessionData as CallSessionData);
 }
@@ -80,11 +73,10 @@ export function startOpenAISession(callId: string, ariClient: AriClientInterface
     return;
   }
 
-  const openAIConfig = callConfig.openAIRealtimeAPI; // Specific config for OpenAI
+  const openAIConfig = callConfig.openAIRealtimeAPI;
 
   const baseUrl = "wss://api.openai.com/v1/realtime";
   let wsQueryString = `?model=${openAIConfig.model}`;
-  // Removed transcriptionIntentOnly logic as it's not part of the current core requirement for speech-to-speech
 
   const wsUrl = baseUrl + wsQueryString;
 
@@ -102,17 +94,16 @@ export function startOpenAISession(callId: string, ariClient: AriClientInterface
   ws.on('open', () => {
     sessionLogger.info(`SessionManager: OpenAI Realtime WebSocket connection established for callId ${callId}.`);
 
-    let modalitiesArrayInternal: ('audio' | 'text')[] = ['audio', 'text']; // Default
+    let modalitiesArrayInternal: ('audio' | 'text')[] = ['audio', 'text'];
     const modalitiesConfigValue = openAIConfig.responseModalities;
 
     if (typeof modalitiesConfigValue === 'string') {
         modalitiesArrayInternal = modalitiesConfigValue.split(',')
-                                     .map((m: string) => m.trim().toLowerCase()) // Explicit type for m
-                                     .filter((m: string) => m === 'audio' || m === 'text') as ('audio' | 'text')[]; // Explicit type for m
+                                     .map((m: string) => m.trim().toLowerCase())
+                                     .filter((m: string) => m === 'audio' || m === 'text') as ('audio' | 'text')[];
     } else if (Array.isArray(modalitiesConfigValue)) {
         modalitiesArrayInternal = modalitiesConfigValue.filter((m: any): m is ('audio' | 'text') => m === 'audio' || m === 'text');
     }
-     // Ensure a valid default if parsing results in an empty or invalid array
     if (modalitiesArrayInternal.length === 0) {
         modalitiesArrayInternal = ['audio', 'text'];
     }
@@ -120,12 +111,11 @@ export function startOpenAISession(callId: string, ariClient: AriClientInterface
     const sessionUpdatePayload = {
       type: "session.update",
       session: {
-        input_audio_format: openAIConfig.inputAudioFormat, // Should be 'pcm16' from config
-        output_audio_format: openAIConfig.outputAudioFormat, // Should be 'pcm16' from config
+        input_audio_format: openAIConfig.inputAudioFormat,
+        output_audio_format: openAIConfig.outputAudioFormat,
         voice: openAIConfig.ttsVoice,
-        instructions: openAIConfig.instructions_es || openAIConfig.instructions, // Prioritize Spanish instructions
+        instructions: openAIConfig.instructions_es || openAIConfig.instructions,
         modalities: modalitiesArrayInternal,
-        // TODO: Add other parameters like turn_detection if needed
       }
     };
 
@@ -141,13 +131,12 @@ export function startOpenAISession(callId: string, ariClient: AriClientInterface
   });
 
   ws.on('message', (data: RawData) => {
-    // Message handling logic from previous version, adapted for OpenAISession
     let messageContent: string = '';
-    const currentSession = activeOpenAISessions.get(callId); // Use currentSession
+    const currentSession = activeOpenAISessions.get(callId);
     if (!currentSession) return;
 
     const currentAriClient = currentSession.ariClient;
-    const msgSessionLogger = currentSession.logger; // Use logger from session
+    const msgSessionLogger = currentSession.logger;
 
     if (Buffer.isBuffer(data)) {
       messageContent = data.toString('utf8');
@@ -161,7 +150,7 @@ export function startOpenAISession(callId: string, ariClient: AriClientInterface
     } else if (data instanceof ArrayBuffer) {
       messageContent = Buffer.from(data).toString('utf8');
     } else {
-        messageContent = String(data); // Fallback for other types
+        messageContent = String(data);
         msgSessionLogger.warn(`OpenAI Realtime WebSocket: Received data of non-standard type (converted to string) for callId ${callId}. Type: ${typeof data}`);
     }
 
@@ -174,7 +163,6 @@ export function startOpenAISession(callId: string, ariClient: AriClientInterface
         switch (serverEvent.type) {
           case 'session.created':
             msgSessionLogger.info(`OpenAI session.created for ${callId}: ${JSON.stringify(serverEvent.session)}`);
-            // session.isReady = true; // Example: mark session as ready
             break;
           case 'session.updated':
             msgSessionLogger.info(`OpenAI session.updated for ${callId}: ${JSON.stringify(serverEvent.session)}`);
@@ -196,7 +184,6 @@ export function startOpenAISession(callId: string, ariClient: AriClientInterface
                         if (textPart) finalTranscriptText = textPart.text;
                     }
                 } else {
-                    // Fallback for older or different structures if necessary
                     const altTextOutput = serverEvent.response.output.find((item:any) => item.transcript);
                     if (altTextOutput) finalTranscriptText = altTextOutput.transcript;
                 }
@@ -210,7 +197,7 @@ export function startOpenAISession(callId: string, ariClient: AriClientInterface
           case 'response.audio.delta':
             if (serverEvent.delta && typeof serverEvent.delta.audio === 'string') {
               if (typeof currentAriClient._onOpenAIAudioChunk === 'function') {
-                   currentAriClient._onOpenAIAudioChunk(callId, serverEvent.delta.audio, false); // Assuming base64 encoded audio
+                   currentAriClient._onOpenAIAudioChunk(callId, serverEvent.delta.audio, false);
               } else {
                    msgSessionLogger.warn("ariClient._onOpenAIAudioChunk is not implemented.");
               }
@@ -219,7 +206,7 @@ export function startOpenAISession(callId: string, ariClient: AriClientInterface
           case 'response.audio.done':
             msgSessionLogger.info(`OpenAI response.audio.done for ${callId}.`);
             if (typeof currentAriClient._onOpenAIAudioChunk === 'function') {
-                currentAriClient._onOpenAIAudioChunk(callId, "", true); // Signal end of audio stream
+                currentAriClient._onOpenAIAudioChunk(callId, "", true);
             }
             break;
           case 'input_audio_buffer.speech_started':
@@ -228,7 +215,6 @@ export function startOpenAISession(callId: string, ariClient: AriClientInterface
                break;
           case 'input_audio_buffer.speech_stopped':
                msgSessionLogger.info(`OpenAI detected speech stopped for ${callId}`);
-               // currentAriClient._onOpenAISpeechEnded(callId); // Or similar callback
                break;
           case 'error':
             msgSessionLogger.error(`OpenAI Server Error for ${callId}:`, serverEvent.error || serverEvent);
@@ -247,7 +233,7 @@ export function startOpenAISession(callId: string, ariClient: AriClientInterface
   ws.on('error', (error: Error) => {
     sessionLogger.error(`SessionManager: OpenAI Realtime WebSocket error for callId ${callId}:`, error);
     ariClient._onOpenAIError(callId, error);
-    activeOpenAISessions.delete(callId); // Clean up session on error
+    activeOpenAISessions.delete(callId);
   });
 
   ws.on('close', (code: number, reason: Buffer) => {
@@ -268,11 +254,10 @@ export function stopOpenAISession(callId: string, reason: string): void {
   if (session) {
     if (session.ws && session.ws.readyState === WebSocket.OPEN) {
       loggerToUse.info(`SessionManager: Closing OpenAI Realtime WebSocket for ${callId}.`);
-      session.ws.close(1000, reason); // Normal closure
+      session.ws.close(1000, reason);
     } else {
       loggerToUse.info(`SessionManager: OpenAI Realtime WebSocket for ${callId} was already closing or not in OPEN state.`);
     }
-    // activeOpenAISessions.delete(callId) will be handled in 'close' event listener
   } else {
     loggerToUse.warn(`SessionManager: stopOpenAISession called for ${callId}, but no active Realtime session data found.`);
   }
@@ -282,14 +267,12 @@ export function stopOpenAISession(callId: string, reason: string): void {
 export function processAndForwardAudio(callId: string, ulawAudioBuffer: Buffer): void {
     const session = activeOpenAISessions.get(callId);
     if (!session || !session.ws || session.ws.readyState !== WebSocket.OPEN) {
-        // session.logger.warn(`[${callId}] No active session or WebSocket not open for audio packet.`);
         return;
     }
 
     const { logger, config: callConfig } = session;
 
-    // Audio Capture (raw u-law from Asterisk)
-    const audioCaptureConfig = callConfig.audioCapture; // Accessing directly from CallSpecificConfig
+    const audioCaptureConfig = callConfig.audioCapture;
     if (audioCaptureConfig && audioCaptureConfig.enabled) {
         const outputDir = audioCaptureConfig.path || path.join(__dirname, '..', '..', 'captured_audio');
         if (!fs.existsSync(outputDir)) {
@@ -299,7 +282,7 @@ export function processAndForwardAudio(callId: string, ulawAudioBuffer: Buffer):
                 logger.error(`[${callId}] Error creating audio capture directory ${outputDir}: ${e.message}`);
             }
         }
-        if (fs.existsSync(outputDir)) { // Check again if directory creation was successful
+        if (fs.existsSync(outputDir)) {
             const filePath = path.join(outputDir, `${callId}_${Date.now()}.ulaw`);
             fs.appendFile(filePath, ulawAudioBuffer, (err) => {
                 if (err) {
@@ -309,38 +292,33 @@ export function processAndForwardAudio(callId: string, ulawAudioBuffer: Buffer):
         }
     }
 
-    // Audio Conversion for OpenAI
     try {
-        // 1. Decode u-law (Buffer) to Int16Array (8kHz PCM)
-        // Using the imported ulawToPCM function directly
-        const pcm8kHzInt16Samples: Int16Array = ulawToPCM(ulawAudioBuffer);
+        const pcm8kHzInt16Samples: Int16Array = ulawToPCM(ulawAudioBuffer, 16);
 
-        // 2. Manual Linear Interpolation for 8kHz to 24kHz (1:3 ratio)
         const numInputSamples = pcm8kHzInt16Samples.length;
         if (numInputSamples === 0) {
             logger.warn(`[${callId}] Received empty u-law buffer, skipping conversion.`);
             return;
         }
         const numOutputSamples = numInputSamples * 3;
-        const pcm24kHzInt16Samples = new Int16Array(numOutputSamples);
+        const pcm24kHzSamples = new Int16Array(numOutputSamples);
 
         for (let i = 0; i < numInputSamples; i++) {
             const currentSample = pcm8kHzInt16Samples[i];
-            const nextSample = (i + 1 < numInputSamples) ? pcm8kHzInt16Samples[i + 1] : currentSample; // Repeat last sample if at the end
+            const nextSample = (i + 1 < numInputSamples) ? pcm8kHzInt16Samples[i + 1] : currentSample;
 
-            pcm24kHzInt16Samples[i * 3] = currentSample;
-            pcm24kHzInt16Samples[i * 3 + 1] = Math.round(currentSample * (2/3) + nextSample * (1/3));
-            pcm24kHzInt16Samples[i * 3 + 2] = Math.round(currentSample * (1/3) + nextSample * (2/3));
+            pcm24kHzSamples[i * 3] = currentSample;
+            pcm24kHzSamples[i * 3 + 1] = Math.round(currentSample * (2/3) + nextSample * (1/3));
+            pcm24kHzSamples[i * 3 + 2] = Math.round(currentSample * (1/3) + nextSample * (2/3));
         }
 
-        // 3. Convert Int16Array (24kHz) to Buffer (Little-Endian)
-        const pcm24kHzBuffer = Buffer.alloc(pcm24kHzInt16Samples.length * 2); // 2 bytes per 16-bit sample
-        for (let i = 0; i < pcm24kHzInt16Samples.length; i++) {
-            pcm24kHzBuffer.writeInt16LE(pcm24kHzInt16Samples[i], i * 2);
+        const pcm24kHzBuffer = Buffer.alloc(pcm24kHzSamples.length * 2);
+        for (let i = 0; i < pcm24kHzSamples.length; i++) {
+            pcm24kHzBuffer.writeInt16LE(pcm24kHzSamples[i], i * 2);
         }
 
         if (pcm24kHzBuffer.length > 0) {
-            sendAudioToOpenAI(callId, pcm24kHzBuffer); // Use the existing method
+            sendAudioToOpenAI(callId, pcm24kHzBuffer);
         } else {
             logger.warn(`[${callId}] Converted PCM 24kHz buffer is empty. Original u-law length: ${ulawAudioBuffer.length}`);
         }
@@ -349,15 +327,12 @@ export function processAndForwardAudio(callId: string, ulawAudioBuffer: Buffer):
     }
 }
 
-
-// This function sends the already processed (PCM16 24kHz) audio to OpenAI
 function sendAudioToOpenAI(callId: string, pcm24kHzBuffer: Buffer): void {
   const session = activeOpenAISessions.get(callId);
   if (session && session.ws && session.ws.readyState === WebSocket.OPEN) {
     const { logger } = session;
     const base64AudioChunk = pcm24kHzBuffer.toString('base64');
     const audioEvent = { type: 'input_audio_buffer.append', audio: base64AudioChunk };
-    // logger.debug(`[${callId}] OpenAI Realtime: Sending input_audio_buffer.append with PCM 24kHz audio chunk (base64 length): ${base64AudioChunk.length}`);
     try {
       session.ws.send(JSON.stringify(audioEvent));
     } catch (e:any) {
@@ -365,7 +340,6 @@ function sendAudioToOpenAI(callId: string, pcm24kHzBuffer: Buffer): void {
     }
   }
 }
-
 
 export function requestOpenAIResponse(callId: string, transcript: string): void {
   const session = activeOpenAISessions.get(callId);
@@ -388,17 +362,16 @@ export function requestOpenAIResponse(callId: string, transcript: string): void 
     session.ws.send(JSON.stringify(conversationItemCreateEvent));
     logger.info(`[${callId}] Sent conversation.item.create with user transcript.`);
 
-    let modalitiesArrayInternal: ('audio' | 'text')[] = ['audio', 'text']; // Default
+    let modalitiesArrayInternal: ('audio' | 'text')[] = ['audio', 'text'];
     const modalitiesConfigValue = callConfig.openAIRealtimeAPI.responseModalities;
 
     if (typeof modalitiesConfigValue === 'string') {
         modalitiesArrayInternal = modalitiesConfigValue.split(',')
-                                     .map((m: string) => m.trim().toLowerCase()) // Explicit type for m
-                                     .filter((m: string) => m === 'audio' || m === 'text') as ('audio' | 'text')[]; // Explicit type for m
+                                     .map((m: string) => m.trim().toLowerCase())
+                                     .filter((m: string) => m === 'audio' || m === 'text') as ('audio' | 'text')[];
     } else if (Array.isArray(modalitiesConfigValue)) {
         modalitiesArrayInternal = modalitiesConfigValue.filter((m: any): m is ('audio' | 'text') => m === 'audio' || m === 'text');
     }
-    // Ensure a valid default if parsing results in an empty or invalid array
     if (modalitiesArrayInternal.length === 0) {
         modalitiesArrayInternal = ['audio', 'text'];
     }
@@ -426,32 +399,28 @@ export function handleAriCallEnd(callId: string) {
   if (session) {
     if (session.ws && (session.ws.readyState === WebSocket.OPEN || session.ws.readyState === WebSocket.CONNECTING) ) {
       loggerToUse.info(`SessionManager: Closing active OpenAI Realtime connection for ended call ${callId}.`);
-      session.ws.close(1000, "Call ended"); // Normal closure
+      session.ws.close(1000, "Call ended");
     }
-    // activeOpenAISessions.delete(callId) is handled by the 'close' event listener for the WebSocket
   }
 
-  // Legacy session cleanup
   const oldSession = getLegacySession(callId, "handleAriCallEnd");
   if (oldSession) {
-    if (isOpen(oldSession.modelConn)) { // Check if modelConn exists and is open
+    if (isOpen(oldSession.modelConn)) {
       loggerToUse.info(`SessionManager (Legacy): Closing any active old model connection for ended call ${callId}.`);
       oldSession.modelConn.close();
     }
-    if (oldSession.frontendConn && isOpen(oldSession.frontendConn)) { // Check if frontendConn exists and is open
+    if (oldSession.frontendConn && isOpen(oldSession.frontendConn)) {
          jsonSend(oldSession.frontendConn, {type: "call_ended", callId: callId });
     }
     activeSessions.delete(callId);
     loggerToUse.info(`SessionManager (Legacy): Old legacy session data for callId ${callId} fully removed.`);
   }
 
-  if (!session && !oldSession) { // If neither new nor old session found
+  if (!session && !oldSession) {
     loggerToUse.warn(`SessionManager: Received ARI call end for callId ${callId}, but no session data was found (already cleaned up or never existed).`);
   }
 }
 
-
-// --- Legacy Frontend and Model Message Handling (Mark for Review/Removal if not used) ---
 let globalFrontendConn: WebSocket | undefined;
 export function handleFrontendConnection(ws: WebSocket) {
   if (isOpen(globalFrontendConn)) globalFrontendConn.close();
@@ -504,7 +473,6 @@ function handleModelMessage(callId: string, data: RawData) {
 }
 
 async function handleFunctionCall(callId: string, item: { name: string; arguments: string, call_id?: string }) {
-  // This function seems tied to the old model's function calling. Needs review.
   console.log(`SessionManager (Legacy): Handling function call '${item.name}' for callId ${callId}. Args: ${item.arguments}`);
   const fnDef = functions.find((f) => f.schema.name === item.name);
   if (!fnDef) {
@@ -524,11 +492,9 @@ async function handleFunctionCall(callId: string, item: { name: string; argument
 function closeModelConnection(callId: string) {
   const session = activeSessions.get(callId);
   if (session) {
-    session.modelConn = undefined; // Clear out the old model connection
+    session.modelConn = undefined;
   }
 }
-// --- End Legacy Section ---
-
 
 function parseMessage(data: RawData): any {
   try {
