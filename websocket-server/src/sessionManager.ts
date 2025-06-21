@@ -293,7 +293,9 @@ export function processAndForwardAudio(callId: string, ulawAudioBuffer: Buffer):
     }
 
     try {
-        const pcm8kHzInt16Samples: Int16Array = ulawToPCM(ulawAudioBuffer, 16);
+        // Using the imported ulawToPCM function directly and specifying 16-bit output
+        // Adding type assertion due to persistent TS2322, assuming .d.ts is incorrect for g711 package.
+        const pcm8kHzInt16Samples = ulawToPCM(ulawAudioBuffer, 16) as any as Int16Array;
 
         const numInputSamples = pcm8kHzInt16Samples.length;
         if (numInputSamples === 0) {
