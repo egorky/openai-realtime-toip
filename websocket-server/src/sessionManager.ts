@@ -1,5 +1,5 @@
 import { RawData, WebSocket } from "ws";
-import { decodeUlaw as g711DecodeUlaw } from 'g711'; // Use named import
+import * as g711 from 'g711'; // Revert to namespace import
 import config from 'config';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -311,7 +311,7 @@ export function processAndForwardAudio(callId: string, ulawAudioBuffer: Buffer):
     // Audio Conversion for OpenAI
     try {
         // 1. Decode u-law (Buffer) to Int16Array (8kHz PCM)
-        const pcm8kHzInt16Samples: Int16Array = g711DecodeUlaw(ulawAudioBuffer);
+        const pcm8kHzInt16Samples: Int16Array = g711.decodeUlaw(ulawAudioBuffer); // Use namespace.decodeUlaw
 
         // 2. Manual Linear Interpolation for 8kHz to 24kHz (1:3 ratio)
         const numInputSamples = pcm8kHzInt16Samples.length;
