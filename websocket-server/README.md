@@ -72,7 +72,8 @@ This file (located at `websocket-server/config/default.json`) defines the defaul
     "outputAudioFormat": "g711_ulaw",// For u-law passthrough
     "outputAudioSampleRate": 8000,   // For u-law passthrough
     "ttsVoice": "alloy",
-    "responseModalities": ["audio", "text"]
+    "responseModalities": ["audio", "text"],
+    "instructions": "Eres un asistente de IA amigable y servicial. Responde de manera concisa."
   },
   "logging": {
     "level": "info" // debug, info, warn, error, silly

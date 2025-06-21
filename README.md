@@ -130,8 +130,8 @@ Ensure your Asterisk server is properly configured:
     *   Reload your dialplan in Asterisk CLI: `dialplan reload`.
 
 4.  **Audio Codec:**
-    *   Ensure that your SIP device/trunk and Asterisk are configured to use **G.711 µ-law (ulaw)** for the call path into the Stasis application. This is the format the `websocket-server` is currently configured to expect from Asterisk and send to OpenAI. Mismatched codecs can result in silence or errors.
-    *   Check your SIP peer configuration (e.g., `allow=ulaw` in `sip.conf` or `pjsip.conf`).
+    *   Ensure that your SIP device/trunk and Asterisk are configured to use **G.711 µ-law (ulaw)** for the call path. The `websocket-server` is configured to expect G.711 µ-law from Asterisk (via its RTP stream) to send to OpenAI, and also expects G.711 µ-law responses from OpenAI for direct playback to the caller. This passthrough strategy minimizes transcoding. Mismatched codecs can result in silence or errors.
+    *   Check your SIP peer configuration (e.g., `allow=ulaw` in `sip.conf` or `pjsip.conf`) and ensure it aligns with this.
 
 ## Testing
 
