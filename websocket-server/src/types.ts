@@ -86,8 +86,13 @@ export interface OpenAIRealtimeAPIConfig {
   outputAudioSampleRate?: number; // e.g., 24000, 16000
   ttsVoice?: string; // e.g., "alloy"
   transcriptionIntentOnly?: boolean; // Custom flag if STT is only for intent not full conversation
-  responseModalities?: ("audio" | "text")[];
+  responseModalities?: string | ("audio" | "text")[]; // Can be string from config, parsed to array
   instructions?: string; // For system prompt/instructions sent in session.update
+  instructions_es?: string; // Specifically for Spanish instructions
+  prompt_es?: string; // Specifically for Spanish prompt
+  noInputTimeoutPlayback?: string;
+  endOfCallPhrase_es?: string;
+
 
   // Deprecated fields, kept for potential reference or if used by older configs:
   audioFormat?: string;
@@ -100,18 +105,75 @@ export interface OpenAIRealtimeAPIConfig {
 
 export interface LoggingConfig {
   level: "debug" | "info" | "warn" | "error"; // Common log levels
+  prettyPrint?: boolean;
+  destination?: string;
 }
 
-export interface RuntimeConfig {
-  appConfig: AppConfig;
-  openAIRealtimeAPI: OpenAIRealtimeAPIConfig;
+export interface TimersConfig {
+    noSpeechBeginTimeoutSeconds: number;
+    initialOpenAIStreamIdleTimeoutSeconds: number;
+    subsequentOpenAIStreamIdleTimeoutSeconds: number;
+    vadNoInputTimeoutSeconds: number;
+    maxCallDurationSeconds: number;
+}
+
+export interface AudioCaptureConfig {
+    enabled?: boolean;
+    path?: string;
+}
+
+export interface VADModeConfig {
+    speechThreshold: number;
+    silenceThreshold: number;
+    maxSpeechTimeSeconds: number;
+    noInputTimeoutSeconds?: number; // Optional for general VAD, required for specific modes
+    interimResults?: boolean; // For continuous
+}
+export interface VADConfig {
+    mode: "afterPrompt" | "continuous";
+    afterPrompt: VADModeConfig;
+    continuous: VADModeConfig;
+}
+
+
+export interface FullConfig {
+  asterisk: {
+    username?: string;
+    password?: string;
+    url?: string;
+    ariAppName?: string;
+  };
+  server: {
+    port?: number;
+  };
+  openai: OpenAIRealtimeAPIConfig; // Nested OpenAI config
   logging: LoggingConfig;
+  timers: TimersConfig;
+  audioCapture: AudioCaptureConfig;
+  vad: VADConfig;
+  // Old top-level appConfig, dtmfConfig, bargeInConfig might be here or intended to be moved/restructured.
+  // For now, CallSpecificConfig will extend this.
+  appConfig?: AppConfig; // Optional if being phased out or merged
+  dtmfConfig?: DtmfConfig; // Optional
+  bargeInConfig?: BargeInConfig; // Optional
 }
 
-export interface CallSpecificConfig extends RuntimeConfig {
+
+// CallSpecificConfig now directly uses/embeds parts of FullConfig or specific sub-configs.
+// This matches how config.get<Type>(path) would typically be used.
+export interface CallSpecificConfig {
+  openAIRealtimeAPI: OpenAIRealtimeAPIConfig; // Required
+  logging: LoggingConfig; // Required
+  timers: TimersConfig; // Required
+  audioCapture: AudioCaptureConfig; // Required
+  vad: VADConfig; // Required
+  // Include other parts of FullConfig if they are truly call-specific and not global
+  // For example, if ariAppName could vary per call (unlikely but for illustration)
+  asteriskAriAppName?: string;
 }
 
 // Definition for a generic logger instance
+export type Logger = LoggerInstance; // Exporting Logger as an alias for LoggerInstance
 export interface LoggerInstance {
   info: (message: string, ...args: any[]) => void;
   error: (message: string, ...args: any[]) => void;

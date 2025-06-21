@@ -101,10 +101,20 @@ export function startOpenAISession(callId: string, ariClient: AriClientInterface
   ws.on('open', () => {
     sessionLogger.info(`SessionManager: OpenAI Realtime WebSocket connection established for callId ${callId}.`);
 
-    const modalitiesString = openAIConfig.responseModalities || "audio,text";
-    const modalitiesArray = modalitiesString.split(',')
-                                     .map(m => m.trim().toLowerCase())
-                                     .filter(m => m === 'audio' || m === 'text') as ('audio' | 'text')[];
+    let modalitiesArrayInternal: ('audio' | 'text')[] = ['audio', 'text']; // Default
+    const modalitiesConfigValue = openAIConfig.responseModalities;
+
+    if (typeof modalitiesConfigValue === 'string') {
+        modalitiesArrayInternal = modalitiesConfigValue.split(',')
+                                     .map((m: string) => m.trim().toLowerCase()) // Explicit type for m
+                                     .filter((m: string) => m === 'audio' || m === 'text') as ('audio' | 'text')[]; // Explicit type for m
+    } else if (Array.isArray(modalitiesConfigValue)) {
+        modalitiesArrayInternal = modalitiesConfigValue.filter((m: any): m is ('audio' | 'text') => m === 'audio' || m === 'text');
+    }
+     // Ensure a valid default if parsing results in an empty or invalid array
+    if (modalitiesArrayInternal.length === 0) {
+        modalitiesArrayInternal = ['audio', 'text'];
+    }
 
     const sessionUpdatePayload = {
       type: "session.update",
@@ -112,8 +122,8 @@ export function startOpenAISession(callId: string, ariClient: AriClientInterface
         input_audio_format: openAIConfig.inputAudioFormat, // Should be 'pcm16' from config
         output_audio_format: openAIConfig.outputAudioFormat, // Should be 'pcm16' from config
         voice: openAIConfig.ttsVoice,
-        instructions: openAIConfig.instructions,
-        modalities: modalitiesArray.length > 0 ? modalitiesArray : ['audio', 'text'],
+        instructions: openAIConfig.instructions_es || openAIConfig.instructions, // Prioritize Spanish instructions
+        modalities: modalitiesArrayInternal,
         // TODO: Add other parameters like turn_detection if needed
       }
     };
@@ -278,8 +288,8 @@ export function processAndForwardAudio(callId: string, ulawAudioBuffer: Buffer):
     const { logger, config: callConfig } = session;
 
     // Audio Capture (raw u-law from Asterisk)
-    const audioCaptureConfig = callConfig.audioCapture;
-    if (audioCaptureConfig?.enabled) {
+    const audioCaptureConfig = callConfig.audioCapture; // Accessing directly from CallSpecificConfig
+    if (audioCaptureConfig && audioCaptureConfig.enabled) {
         const outputDir = audioCaptureConfig.path || path.join(__dirname, '..', '..', 'captured_audio');
         if (!fs.existsSync(outputDir)) {
             try {
@@ -301,7 +311,7 @@ export function processAndForwardAudio(callId: string, ulawAudioBuffer: Buffer):
     // Audio Conversion for OpenAI
     try {
         // 1. Decode u-law (Buffer) to Int16Array (8kHz PCM)
-        const pcm8kHzInt16Samples: Int16Array = g711.decode(ulawAudioBuffer);
+        const pcm8kHzInt16Samples: Int16Array = g711.decodeUlaw(ulawAudioBuffer);
 
         // 2. Manual Linear Interpolation for 8kHz to 24kHz (1:3 ratio)
         const numInputSamples = pcm8kHzInt16Samples.length;
@@ -376,15 +386,25 @@ export function requestOpenAIResponse(callId: string, transcript: string): void 
     session.ws.send(JSON.stringify(conversationItemCreateEvent));
     logger.info(`[${callId}] Sent conversation.item.create with user transcript.`);
 
-    const modalitiesString = callConfig.openAIRealtimeAPI.responseModalities || "audio,text";
-    const modalitiesArray = modalitiesString.split(',')
-                                     .map(m => m.trim().toLowerCase())
-                                     .filter(m => m === 'audio' || m === 'text') as ('audio' | 'text')[];
+    let modalitiesArrayInternal: ('audio' | 'text')[] = ['audio', 'text']; // Default
+    const modalitiesConfigValue = callConfig.openAIRealtimeAPI.responseModalities;
+
+    if (typeof modalitiesConfigValue === 'string') {
+        modalitiesArrayInternal = modalitiesConfigValue.split(',')
+                                     .map((m: string) => m.trim().toLowerCase()) // Explicit type for m
+                                     .filter((m: string) => m === 'audio' || m === 'text') as ('audio' | 'text')[]; // Explicit type for m
+    } else if (Array.isArray(modalitiesConfigValue)) {
+        modalitiesArrayInternal = modalitiesConfigValue.filter((m: any): m is ('audio' | 'text') => m === 'audio' || m === 'text');
+    }
+    // Ensure a valid default if parsing results in an empty or invalid array
+    if (modalitiesArrayInternal.length === 0) {
+        modalitiesArrayInternal = ['audio', 'text'];
+    }
 
     const responseCreateEvent = {
       type: "response.create",
       response: {
-        modalities: modalitiesArray.length > 0 ? modalitiesArray : ['audio', 'text'],
+        modalities: modalitiesArrayInternal,
       }
     };
     logger.debug(`[${callId}] OpenAI Realtime: Sending response.create event:`, responseCreateEvent);

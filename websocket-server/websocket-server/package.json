@@ -1,5 +1,8 @@
 {
   "dependencies": {
     "g711": "^1.0.1"
+  },
+  "devDependencies": {
+    "@types/config": "^3.3.5"
   }
 }
