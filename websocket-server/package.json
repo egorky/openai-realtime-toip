@@ -24,10 +24,12 @@
     "ws": "^8.18.0",
     "ari-client": "^2.2.0",
     "axios": "^1.6.0",
-    "g711": "^1.0.0"
+    "g711": "^1.0.0",
+    "config": "^3.3.12"
   },
   "devDependencies": {
     "@types/ari-client": "^2.2.13",
+    "@types/config": "^3.3.5",
     "@types/cors": "^2.8.17",
     "@types/dotenv": "^8.2.0",
     "@types/express": "^5.0.0",
