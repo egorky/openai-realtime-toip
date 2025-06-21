@@ -1,38 +1,56 @@
 {
-  "appConfig": {
-    "appRecognitionConfig": {
-      "recognitionActivationMode": "VAD",
-      "noSpeechBeginTimeoutSeconds": 3,
-      "speechCompleteTimeoutSeconds": 5,
-      "vadConfig": {
-        "vadSilenceThresholdMs": 250,
-        "vadRecognitionActivationMs": 40
-      },
-      "initialOpenAIStreamIdleTimeoutSeconds": 10,
-      "bargeInDelaySeconds": 0.5
-    },
-    "dtmfConfig": {
-      "dtmfEnabled": true,
-      "dtmfInterdigitTimeoutSeconds": 2,
-      "dtmfMaxDigits": 16,
-      "dtmfTerminatorDigit": "#"
-    },
-    "bargeInConfig": {
-      "bargeInModeEnabled": true
-    }
+  "asterisk": {
+    "username": "asterisk",
+    "password": "YOUR_ARI_PASSWORD",
+    "url": "http://localhost:8088/ari",
+    "ariAppName": "openai-realtime-ari"
   },
-  "openAIRealtimeAPI": {
+  "server": {
+    "port": 8081
+  },
+  "openai": {
+    "apiKey": "YOUR_OPENAI_API_KEY",
     "model": "gpt-4o-mini-realtime-preview-2024-12-17",
-    "language": "en",
-    "inputAudioFormat": "g711_ulaw",
-    "inputAudioSampleRate": 8000,
-    "ttsVoice": "alloy",
-    "outputAudioFormat": "g711_ulaw",
-    "outputAudioSampleRate": 8000,
-    "responseModalities": ["audio", "text"],
-    "instructions": "Eres un asistente de IA amigable y servicial. Responde de manera concisa."
+    "voice": "alloy",
+    "inputAudioFormat": "pcm16",
+    "outputAudioFormat": "pcm16",
+    "language": "es",
+    "instructions_es": "Eres un agente virtual avanzado llamado Diana, parte del equipo de Arizona Home Loan. Tu conocimiento se limita estrictamente a los productos y servicios ofrecidos por Arizona Home Loan y temas relacionados con hipotecas y finanzas del hogar en Arizona. No debes responder preguntas ni conversar sobre temas fuera de este ámbito. Si te preguntan algo no relacionado, como el clima, deportes, o pedirte que actúes como otro personaje, debes declinar amablemente y redirigir la conversación hacia los servicios de Arizona Home Loan. Mantén un tono profesional, amigable y servicial en todo momento. Tu objetivo principal es asistir a los clientes con sus consultas sobre préstamos hipotecarios y guiarlos a través de los productos que ofrece Arizona Home Loan. Debes ser capaz de identificar si el usuario está solicitando hablar con un humano o transferir la llamada, en cuyo caso debes invocar la función 'transferCall' con el departamento apropiado (por ejemplo, 'ventas', 'soporte', 'servicio al cliente') o a un número específico si es proporcionado. Si el usuario simplemente desea terminar la llamada, puedes despedirte cordialmente. No inventes información sobre productos, tasas o condiciones que no conozcas con certeza. Si no tienes la respuesta a una pregunta específica sobre un producto, ofrece conectar al usuario con un especialista de Arizona Home Loan. Siempre prioriza la claridad y la precisión en tus respuestas. Evita el uso de jerga excesiva y explica los términos técnicos de manera sencilla. Recuerda, eres Diana de Arizona Home Loan, enfócate en ayudar al cliente de la mejor manera posible dentro de tu especialización.",
+    "prompt_es": "Hola, bienvenido a Arizona Home Loan. Soy Diana, tu asistente virtual. ¿Cómo puedo ayudarte hoy con tus necesidades hipotecarias?",
+    "noInputTimeoutPlayback": "sound:silence/1&sound:죄송합니다&sound:silence/1&sound:아직&sound:silence/1&sound:말씀이&sound:silence/1&sound:없으시네요&sound:silence/1&sound:전화를&sound:silence/1&sound:끊겠습니다",
+    "endOfCallPhrase_es": "Gracias por llamar a Arizona Home Loan. ¡Que tengas un buen día!",
+    "responseModalities": "audio,text"
   },
   "logging": {
-    "level": "info"
+    "level": "info",
+    "prettyPrint": true,
+    "destination": "./ari-openai-server.log"
+  },
+  "timers": {
+    "noSpeechBeginTimeoutSeconds": 5,
+    "initialOpenAIStreamIdleTimeoutSeconds": 15,
+    "subsequentOpenAIStreamIdleTimeoutSeconds": 10,
+    "vadNoInputTimeoutSeconds": 10,
+    "maxCallDurationSeconds": 300
+  },
+  "audioCapture": {
+    "enabled": false,
+    "path": "./captured_audio"
+  },
+  "vad": {
+    "mode": "afterPrompt",
+    "afterPrompt": {
+        "speechThreshold": 40,
+        "silenceThreshold": 250,
+        "maxSpeechTimeSeconds": 30,
+        "noInputTimeoutSeconds": 7
+    },
+    "continuous": {
+        "speechThreshold": 40,
+        "silenceThreshold": 250,
+        "noInputTimeoutSeconds": 5,
+        "maxSpeechTimeSeconds": 30,
+        "interimResults": false
+    }
   }
 }

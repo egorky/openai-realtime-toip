@@ -23,7 +23,8 @@
     "typescript": "^5.5.4",
     "ws": "^8.18.0",
     "ari-client": "^2.2.0",
-    "axios": "^1.6.0"
+    "axios": "^1.6.0",
+    "g711": "^1.0.0"
   },
   "devDependencies": {
     "@types/ari-client": "^2.2.13",
