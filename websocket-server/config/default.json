@@ -30,10 +30,7 @@
     "outputAudioFormat": "g711_ulaw",
     "outputAudioSampleRate": 8000,
     "responseModalities": ["audio", "text"],
-    "instructions": "Eres un asistente de IA amigable y servicial. Responde de manera concisa.",
-    "encoding": "LINEAR16",
-    "sampleRate": 8000,
-    "audioFormat": "PCMU"
+    "instructions": "Eres un asistente de IA amigable y servicial. Responde de manera concisa."
   },
   "logging": {
     "level": "info"
